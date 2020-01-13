@@ -1,39 +1,30 @@
 class Visualization {
     constructor(){
-        // this.width = width;
-        // this.height = height;
-        // this.currentYear = 1970;
+
         d3.queue()
             .defer(d3.json, "https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson")  // World shape
-            .defer(d3.csv, "globalterrorismdb_0718dist.csv") // Position of circles
+            // .defer(d3.csv, "globalterrorismdb_0718dist.csv") // Position of circles, faster to render
+            .defer(d3.csv, "https://media.githubusercontent.com/media/L28-1-n-1-n/D3_Assignment/master/globalterrorismdb_0718dist.csv") // Position of circles, slower to render
             .await(this.ready);
     }
 
     ready(error, dataGeo, data) {
 
             const svg = d3.select("svg");
-
             var currentYear = 1970;
             var width = 945;
             var height = 525;
             var projection = d3.geoMercator()
                 .center([0, 20])                // GPS of location to zoom on
                 .scale(99)                       // This is like the zoom
-                // .translate([this.width / 2, this.height / 2]);
                 .translate([width / 2, height / 2]);
+
+            // Iterates through the data and compose an array of all unique values for attack types, represented by numbers in attacktype1
             var allAttackType = d3.map(data, function (d) {
                 return (d.attacktype1)
             }).keys()
-        console.log(allAttackType);
-        var allAttackType2 = d3.map(data, function (d) {
-            return (d.attacktype1_txt)
-        }).keys()
-        console.log(allAttackType2);
 
-        // var attacksByName = d3.nest(data)
-        //     .key(function(d) { return d.attacktype1; })
-        //     .entries(data);
-        // console.log(attacksByName);
+            // The array of unique attack types shall each be represented by a colour, i.e. they serve as a scale for the colour
 
             var color = d3.scaleOrdinal()
                 .domain(allAttackType)
@@ -58,7 +49,6 @@ class Visualization {
                 .attr("d", d3.geoPath()
                     .projection(projection)
                 )
-
                 .style("stroke", "none")
                 .style("opacity", .3)
 
@@ -66,12 +56,9 @@ class Visualization {
             svg
                 .selectAll("myCircles")
                 .data(data.sort(function (a, b) {
-                    // console.log(b.nkill);
-                    // console.log(a.nkill);
-                    // console.log(a.iyear);
                     return +b.nkill - +a.nkill
                 }).filter(function (d) {
-                    return d.iyear == currentYear
+                    return d.iyear == currentYear // draw only circles that correspond to activities of the current year
                 }))
                 .enter()
                 .append("circle")
@@ -82,31 +69,27 @@ class Visualization {
                     return projection([+d.longitude, +d.latitude])[1]
                 })
 
+                // size of the circle is determined by the casualty of the attack
                 .attr("r", function (d) {
                     return size(+d.nkill)
                 })
 
+                // colour of the circle correspond to the type of the attack
                 .style("fill", function (d) {
                     return color(d.attacktype1)
                 })
                 .style("visibility", "visible")
+
+                // highlight attacks with casualties greater than 2000, those are significant attacks
                 .attr("stroke", function (d) {
                     if (d.nkill > 2000) {
                         return "black"
                     } else {
                         return "none"
                     }
-                    if (d.iyear == 2001) {
-                        console.log("this is year 2001");
-                        console.log(d.nkill);
-                    }
-
                 })
                 .attr("stroke-width", 1)
                 .attr("fill-opacity", .4)
-
-
-
 
             // Add title and explanation
         svg
@@ -120,9 +103,8 @@ class Visualization {
             .style("font-size", 32)
             .style("font-family", "arial")
 
-            // Add year
+            // Add current year
         svg
-
             .append("text")
             .attr("text-anchor", "start")
             .style("fill", "black")
@@ -134,10 +116,15 @@ class Visualization {
             .style("font-size", 32)
             .style("font-family", "arial")
 
-            window.focus();
-        draw_legends();
-            d3.select(window).on("keydown", function () {
 
+            window.focus();
+
+            // create legends including the size scale, and the colour keys
+            draw_legends();
+
+            //listens to input from the keyboard: increment current year if Right Arrow is pressed, decrement if Left Arrow is pressed.
+
+            d3.select(window).on("keydown", function () {
                 switch (d3.event.keyCode) {
                     case 37:
                         currentYear = currentYear - 1;
@@ -149,18 +136,24 @@ class Visualization {
                         break;
                 }
 
+                // refresh visualization to show the most updated year
                 update();
                 draw_legends();
             });
 
             function update() {
+
+                //Further incrementation / decrementation beyond the limit of the dataset (1970 - 2017) not possible
                 if (currentYear < 1970)
                     currentYear = 1970;
                 if (currentYear > 2017)
                     currentYear = 2017;
+
+                //removing all outdated visualizations
                 d3.select("year_now").remove();
                 d3.selectAll("circle").remove();
 
+                // create the new circles according to the new data for the updated year
                 var circle = svg.select("g").selectAll("myCircles")
                     .data(data.sort(function (a, b) {
                         return +b.nkill - +a.nkill
@@ -182,7 +175,7 @@ class Visualization {
                         return color(d.attacktype1)
                     })
                     .attr("stroke", function (d) {
-                        if (d.nkill > 2900) {
+                        if (d.nkill > 2000) {
                             return "black"
                         } else {
                             return "none"
@@ -190,7 +183,11 @@ class Visualization {
                     })
                     .attr("stroke-width", 1)
                     .attr("fill-opacity", .4)
+
+                // removes the label for the outdated year
                 d3.selectAll("#year_now").remove();
+
+                // re-write legend to indicate the updated year
                 svg
 
                     .append("text")
@@ -251,7 +248,7 @@ class Visualization {
                     .style("font-size", 10)
                     .attr('alignment-baseline', 'middle')
 
-                // Add legned: types of attack
+                // Add legned: colour key for types of attack
 
                 var rectData = [
                     { "y": 30, "colour" : 1, "attack_type" : "Assisination", "id" : "Assisinatio"},
@@ -279,11 +276,9 @@ class Visualization {
                     })
                     .attr("fill-opacity", .4)
 
-                    // .on("mouseover", handleMouseOver)
-                    // .on("mouseout", handleMouseOut);
+                    // when the mouse hover over the colour key, show the text key to indicate the type of attack indicated by the colour
                     .on("mouseover", function(d, i) {
-                        console.log("Your mouse went over", d, i);
-                        // add_text(d.y, d.attack_type);
+
                         svg.append("text")
                             .attr("text-anchor", "end")
                             .style("fill", "black")
@@ -291,8 +286,6 @@ class Visualization {
                             .attr("y", d.y+10)
                             .attr("id", d.id)
                             .text(function() {
-                                console.log("in add function");
-                                console.log(d.colour);
                                 return (d.attack_type);  // Value of the text
                             })
                             .style("font-size", 14);
@@ -300,148 +293,35 @@ class Visualization {
 
                     })
 
-
-
-
-
-
-
-
+                    // when the mose is no longer hovering above the colour key, the text key showing the type of attack disappears
                     .on("mouseout", function(d, i) {
                         console.log("Your mouse went out", d, i);
                         console.log("in out function");
                         console.log(d.colour);
-                        // remove_text(d.y, d.attack_type);
+
                         d3.select(this).attr(
                             "fill-opacity", 0.4
                         );
 
                         // Select text by id and then remove
                         d3.select("#" + d.id).remove();  // Remove text location
-
                     });
 
-                // On Click, we want to add data to the array and chart
-                // svg.on("click", function() {
-                //     var coords = d3.mouse(this);
+                // function add_text(y, caption){
                 //
-                //     // Normally we go from data to pixels, but here we're doing pixels to data
-                //     var newData= {
-                //         x: Math.round( xScale.invert(coords[0])),  // Takes the pixel number to convert to number
-                //         y: Math.round( yScale.invert(coords[1]))
-                //     };
+                //     svg.append("text")
+                //         .attr("text-anchor", "end")
+                //         .style("fill", "black")
+                //         .attr("x", 850)
+                //         .attr("y", y+10)
+                //         .attr("id", caption)
+                //         .text(function() {
                 //
-                //     dataset.push(newData);   // Push data to our array
+                //             return (caption);  // Value of the text
+                //         })
+                //         .style("font-size", 14);
                 //
-                //     svg.selectAll("circle")  // For new circle, go through the update process
-                //         .data(dataset)
-                //         .enter()
-                //         .append("circle")
-                //         .attr(circleAttrs)  // Get attributes from circleAttrs var
-                //         .on("mouseover", handleMouseOver)
-                //         .on("mouseout", handleMouseOut);
-                // })
-                function add_text(y, caption){
-                    console.log("LOL");
-
-                    svg.append("text")
-                        .attr("text-anchor", "end")
-                        .style("fill", "black")
-                        .attr("x", 850)
-                        .attr("y", y+10)
-                        .attr("id", caption)
-                        .text(function() {
-                            console.log("here");
-                            return (caption);  // Value of the text
-                        })
-                        .style("font-size", 14);
-
-                }
-
-                // Create Event Handlers for mouse
-                function handleMouseOver(d, i) {  // Add interactivity
-
-                    // Use D3 to select element, change color and size
-                    d3.select(this).attr({
-                        fill: "orange",
-                        // r: radius * 2
-                    });
-
-                    // Specify where to put label of text
-                    svg.append("text").attr({
-                        id: "t" + d.x + "-" + d.y + "-" + i,  // Create an id for text so we can select it later for removing on mouseout
-                        x: function() { return xScale(d.x) - 30; },
-                        y: function() { return yScale(d.y) - 15; }
-                    })
-                        // .text(function() {
-                        //     return [d.attack_type];  // Value of the text
-                        // });
-                }
-
-                //
-                // svg
-                //     .append("text")
-                //     .attr("text-anchor", "end")
-                //     .style("fill", "black")
-                //     .attr("x", width - 10)
-                //     .attr("y", height - 30)
-                //     .attr("width", 90)
-                //     .html("WHERE SURFERS LIVE")
-                //     .style("font-size", 14)
-
-
-
-
-
-                function handleMouseOut(d, i) {
-                    // Use D3 to select element, change color back to normal
-                    d3.select(this).attr({
-                        fill: "black",
-                        // r: radius
-                    });
-
-                    // Select text by id and then remove
-                    d3.select("#t" + d.x + "-" + d.y + "-" + i).remove();  // Remove text location
-                }
-
-
-
-
-
-
-                // var rectValues = ["1", "6", "3", "7", "2", "4", "9", "8", "5"]
-                // var rectValues = [1,2]
-                // d3.select("svg").selectAll("rect")
-                //     .data(rectValues)
-                //     .enter()
-                //     .append("rect")
-                //     .attr("x", 900)
-                //
-                //     .attr("width", 10)
-                //     .attr("height", 20)
-                //     .style("fill", function (d) {
-                //         return color(rectValues)
-                //     })
-                //     .style("visibility", "visible")
-                //     .attr("fill-opacity", .4)
-                //     .attr("y", 900 - 20 * rectValues)
-
-                // svg
-                //     .selectAll("legend_rect")
-                //     .data(rectValues)
-                //     .enter()
-                //     .append("rect")
-                //     .attr("x", 900)
-                //     .attr("y", 0 + )
-                //     .attr("width", 10)
-                //     .attr("height", 20)
-                //
-                //     .style("fill", function (d) {
-                //         return color(rectValues)
-                //     })
-                //     .style("visibility", "visible")
-                //     .attr("fill-opacity", .4)
-
+                // }
 
             }
 
