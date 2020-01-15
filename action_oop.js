@@ -1,45 +1,64 @@
+/**
+ @module MapOfCasualties
+ */
 class Visualization {
+
+    /** constructor */
     constructor(){
 
         d3.queue()
             .defer(d3.json, "https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson")  // World shape
-            // .defer(d3.csv, "globalterrorismdb_0718dist.csv") // Position of circles, faster to render
-            .defer(d3.csv, "https://media.githubusercontent.com/media/L28-1-n-1-n/D3_Assignment/master/globalterrorismdb_0718dist.csv") // Position of circles, slower to render
+            .defer(d3.csv, "globalterrorismdb_0718dist.csv") // Position of circles, faster to render
+            // .defer(d3.csv, "https://media.githubusercontent.com/media/L28-1-n-1-n/D3_Assignment/master/globalterrorismdb_0718dist.csv") // Position of circles, slower to render
             .await(this.ready);
     }
 
+    /**
+     * Generate the viewport and visualization.
+     * @ready
+     * @property {Object} svg - The svg element that defines the viewport.
+     * @property {Number} currentYear - The year on display.
+     * @property {Number} width - Width of the canvas.
+     * @property {Number} height - Height of the canvas.
+     * @property {Object} projection - The background map according to the scale applied
+     * @property {Array} allAttackType - An array composed by all unique values for attack types, represented by numbers in attacktype1
+     * @property {Array} color - An array of colours each representing an attack type. This is a scale for the colour
+     * @property {Numbers} valueExtent - The maximum and minimum value of casualties serves as a scale for the bubble size
+     * @property {Number} size - Stores the size of the bubble in pixel to be generated
+     */
     ready(error, dataGeo, data) {
 
-            const svg = d3.select("svg");
-            var currentYear = 1970;
-            var width = 945;
-            var height = 525;
-            var projection = d3.geoMercator()
-                .center([0, 20])                // GPS of location to zoom on
-                .scale(99)                       // This is like the zoom
-                .translate([width / 2, height / 2]);
+        const svg = d3.select("svg");
+        var currentYear = 1970;
+        var width = 1945;
+        var height = 1500;
 
-            // Iterates through the data and compose an array of all unique values for attack types, represented by numbers in attacktype1
-            var allAttackType = d3.map(data, function (d) {
-                return (d.attacktype1)
-            }).keys()
+        var projection = d3.geoMercator()
+            .center([160, -75])                /** GPS of location to zoom on */
+            .scale(150)                      /** This is like the zoom */
+            .translate([width / 2, height / 2]);
 
-            // The array of unique attack types shall each be represented by a colour, i.e. they serve as a scale for the colour
+        /**  Iterates through the data and compose an array of all unique values for attack types, represented by numbers in attacktype1 */
+        var allAttackType = d3.map(data, function (d) {
+            return (d.attacktype1)
+        }).keys()
 
-            var color = d3.scaleOrdinal()
-                .domain(allAttackType)
-                .range(d3.schemePaired);
+        /** The array of unique attack types shall each be represented by a colour, i.e. they serve as a scale for the colour */
 
-            // Add a scale for bubble size
-            var valueExtent = d3.extent(data, function (d) {
-                return +d.nkill;
-            })
-            // var valueExtent = d3.extent(data, function(d) { return +d.n; })
-            var size = d3.scaleSqrt()
-                .domain(valueExtent)  // What's in the data
-                .range([1, 50])  // Size in pixel
+        var color = d3.scaleOrdinal()
+            .domain(allAttackType)
+            .range(d3.schemePaired);
 
-            // Draw the map
+        /** Add a scale for bubble size */
+        var valueExtent = d3.extent(data, function (d) {
+            return +d.nkill;
+        })
+
+        var size = d3.scaleSqrt()
+            .domain(valueExtent)  /*** What's in the data */
+            .range([1, 100])  /*** Size in pixel */
+
+            /** Draw the map */
             svg.append("g")
                 .selectAll("path")
                 .data(dataGeo.features)
@@ -96,10 +115,10 @@ class Visualization {
             .append("text")
             .attr("text-anchor", "end")
             .style("fill", "black")
-            .attr("x", width - 10)
-            .attr("y", height - 30)
+            .attr("x", width - 700)
+            .attr("y", height - 900)
             .attr("width", 90)
-            .html("GLOBAL TERRORISM BY YEAR")
+            .html("GLOBAL TERRORISM CASUALTIES BY YEAR")
             .style("font-size", 32)
             .style("font-family", "arial")
 
@@ -141,6 +160,12 @@ class Visualization {
                 draw_legends();
             });
 
+        /**
+         * Update the visualization to reflect the appropriate year.
+         * @method update
+         * @property {Object} circle - The updated bubbles generated from the new data.
+         *
+         */
             function update() {
 
                 //Further incrementation / decrementation beyond the limit of the dataset (1970 - 2017) not possible
@@ -202,6 +227,16 @@ class Visualization {
                     .style("font-family", "arial")
 
             }
+        /**
+         * Generate legends - key to scale and types of attack.
+         * @method draw_legends
+         * @property {Object} valuesToShow - A few chosen values for the scale.
+         * @property {Number} xCircle - x-Coordinate of centre of circle
+         * @property {Number} xLabel - x-Coordinate of where the label begins
+         * @property {Array} rectData - data to draw rectangular key for different types of attack
+         * @property {Object} rect - Rectangular shapes on top right corner as key showing colour codes for different types of attact
+         *
+         */
             function draw_legends(){
 
                 // --------------- //
@@ -209,16 +244,16 @@ class Visualization {
                 // --------------- //
 
                 // Add legend: circles
-                var valuesToShow = [100,500,1000,3000]
-                var xCircle = 80
-                var xLabel = 180
+                var valuesToShow = [100,500,1000,2000]
+                var xCircle = width - 1800
+                var xLabel = width / 3 + 100
                 svg
                     .selectAll("legend")
                     .data(valuesToShow)
                     .enter()
                     .append("circle")
                     .attr("cx", xCircle)
-                    .attr("cy", function(d){ return height - size(d) } )
+                    .attr("cy", function(d){ return height - 800 - size(d) } )
                     .attr("r", function(d){ return size(d) })
                     .style("fill", "none")
                     .attr("stroke", "black")
@@ -230,9 +265,9 @@ class Visualization {
                     .enter()
                     .append("line")
                     .attr('x1', function(d){ return xCircle + size(d) } )
-                    .attr('x2', xLabel)
-                    .attr('y1', function(d){ return height - size(d) } )
-                    .attr('y2', function(d){ return height - size(d) } )
+                    .attr('x2', xLabel - 400)
+                    .attr('y1', function(d){ return height - 800 - size(d) } )
+                    .attr('y2', function(d){ return height - 800 - size(d) } )
                     .attr('stroke', 'black')
                     .style('stroke-dasharray', ('2,2'))
 
@@ -242,10 +277,10 @@ class Visualization {
                     .data(valuesToShow)
                     .enter()
                     .append("text")
-                    .attr('x', xLabel)
-                    .attr('y', function(d){ return height - size(d) } )
+                    .attr('x', xLabel - 400)
+                    .attr('y', function(d){ return height - 800 - size(d) } )
                     .text( function(d){ return d } )
-                    .style("font-size", 10)
+                    .style("font-size", 20)
                     .attr('alignment-baseline', 'middle')
 
                 // Add legned: colour key for types of attack
@@ -267,7 +302,7 @@ class Visualization {
                     .data(rectData)
                     .enter()
                     .append("rect")
-                    .attr("x", 900)
+                    .attr("x", 1200)
                     .attr("y", function (d) { return d.y; })
                     .attr("width", 10)
                     .style("height", 20)
@@ -282,7 +317,7 @@ class Visualization {
                         svg.append("text")
                             .attr("text-anchor", "end")
                             .style("fill", "black")
-                            .attr("x", 850)
+                            .attr("x", 1150)
                             .attr("y", d.y+10)
                             .attr("id", d.id)
                             .text(function() {
@@ -306,23 +341,6 @@ class Visualization {
                         // Select text by id and then remove
                         d3.select("#" + d.id).remove();  // Remove text location
                     });
-
-                // function add_text(y, caption){
-                //
-                //     svg.append("text")
-                //         .attr("text-anchor", "end")
-                //         .style("fill", "black")
-                //         .attr("x", 850)
-                //         .attr("y", y+10)
-                //         .attr("id", caption)
-                //         .text(function() {
-                //
-                //             return (caption);  // Value of the text
-                //         })
-                //         .style("font-size", 14);
-                //
-                // }
-
             }
 
     }
